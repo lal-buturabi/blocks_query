@@ -3,7 +3,7 @@ use std::{collections::{HashMap, HashSet}, env, hash::Hash, str::FromStr, sync::
 use std::error::Error;
 
 use mongodb::bson::doc;
-use web3::{signing::keccak256, transports::Http, types::{BlockId, Filter, FilterBuilder, H160, U64}};
+use web3::{signing::keccak256, transports::Http, types::{BlockId, Filter, FilterBuilder, H160, H256, U64}};
 use web3::types::{Log, BlockNumber, Transaction};
 use web3::Web3;
 use web3::contract::Contract;
@@ -20,6 +20,8 @@ use logger::{LogLevel, FileLogger};
 
 use crate::logger::Logger;
 use hex::encode;
+use regex::Regex;
+use ethabi::{ParamType, decode};
 
 // DB related constants
 const DB_NAME: &str = "Nexa_Diagnostics";
@@ -28,10 +30,10 @@ const EVENT_COLLECTION: &str = "events_table";
 const BLOCK_COLLECTION: &str = "blocks_table";
 
 // log file path constants
-const ERR_LOG_FILE: &str = "./logs/error.log";
-const INFO_LOG_FILE: &str = "./logs/info.log";
-const DEBUG_LOG_FILE: &str = "./logs/debug.log";
-const WARN_LOG_FILE: &str = "./logs/warning.log";
+const ERR_LOG_FILE: &str = "./error.log";
+const INFO_LOG_FILE: &str = "./info.log";
+const DEBUG_LOG_FILE: &str = "./debug.log";
+const WARN_LOG_FILE: &str = "./warning.log";
 
 // struct CustomHashSet<T>(Vec<>)
 
@@ -42,6 +44,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 //       env::var("MONGODB_URI").expect("You must set the MONGODB_URI environment var!");
    let rpc_url =
       env::var("RPC_URL3").expect("You must set the RPC_URL environment var!");
+   let abi_path =
+      env::var("ABI_PATH").expect("You must set the RPC_URL environment var!");
 
 //    let options =
 //       ClientOptions::parse_with_resolver_config(&client_uri, ResolverConfig::cloudflare())
@@ -52,7 +56,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let http_transport = Http::new(&rpc_url).unwrap();
     let web3 = Arc::new(Web3::new(http_transport));
 
-    let mut file = File::open("./src/abi.json").expect("Failed to open ABI file");
+    let mut file = File::open(abi_path).expect("Failed to open ABI file");
     let mut abi_string = String::new();
     file.read_to_string(&mut abi_string).expect("Failed to read ABI file");
 
@@ -68,21 +72,26 @@ async fn main() -> Result<(), Box<dyn Error>> {
         contract_abi,
     )?);
   
+    let mut index: HashMap<[u8; 32], String> = HashMap::new();  
     
     let event_list = Arc::new(
         contract.abi().events().into_iter().map(|event| { 
             let sig = format!("{}({})", event.name, event.inputs.iter().map(|i| i.kind.to_string()).collect::<Vec<_>>().join(","));
-            let hash = keccak256(sig.as_bytes());
-            println!("sign: {}, hash: {:?}", sig, encode(hash));
-            (hash, sig)
+            let index_str = event.inputs.iter().map(|ip| if ip.indexed { "1" } else { "0" }).collect::<Vec<_>>().join(",");
+            let h = keccak256(sig.as_bytes());
+            println!("{}\t\t\t{:?}\n{}\n", sig, encode(h), index_str);
+            index.insert(h, index_str);
+            (h, sig)
         }).collect::<HashMap<[u8; 32], String>>());
-    return Ok(());
+        println!("\n\n");
+    // return Ok(());
+    let start_block_height: usize = 1543162;
     let start_block_height: usize = 1801212;
     let block_height = web3.eth().block_number().await.unwrap().as_usize();
     let total = block_height - start_block_height;
     let each = total / 1000;
 
-    println!("total blocks to read: {}", total);
+    println!("height: {}\nstart: {}\n", block_height, start_block_height);
     let mut tasks = Vec::new();
 
     // let logger = Arc::new(RefCell::new(FileLogger::new(INFO_LOG_FILE, ERR_LOG_FILE)?));
@@ -93,10 +102,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let _contract = contract.clone();
         // let _client = client.clone();
         let _event_list = event_list.clone();
+        let _index = index.clone();
         
         let mut _logger = logger.clone();
         tasks.push(task::spawn(async move {
-            process_range(start_block_height, start_block_height, &_web3, &_contract, &_event_list, &_logger).await;
+            process_range(start_block_height, start_block_height, &_web3, &_contract, &_event_list, &_index, &_logger).await;
         }));
     }
 
@@ -119,7 +129,68 @@ struct BlockModel {
 
 }
 
-async fn process_range(start: usize, end: usize, web3: &Web3<Http>, contract: &Contract<Http>, event_list: &HashMap<[u8; 32], String>, logger: &FileLogger) {
+fn to_param_types(sig: &str, idx: &str) -> (Vec<ParamType>, Vec<ParamType>) {
+    let mut substr = String::new();
+    let mut s = false;
+    for c in sig.chars() {
+        if c == '(' {
+            s = true;
+            continue;
+            // m = true;
+        }
+        if c == ')' {
+            s = false
+        }
+        if s {
+            substr.push(c)
+        }
+    }
+    println!("event signature: {}", substr);
+    let idxs = idx.split(',');
+    println!("IDXs: {:?}", idxs);
+    let clz = |(i, s)| {
+        match s {
+            "address" => ParamType::Address,
+            "bytes" => ParamType::Bytes,
+            "uint8" => ParamType::Uint(8),
+            "uint16" => ParamType::Uint(16),
+            "uint20" => ParamType::Uint(20),
+            "uint24" => ParamType::Uint(24),
+            "uint32" => ParamType::Uint(32),
+            "uint40" => ParamType::Uint(40),
+            "uint128" => ParamType::Uint(128),
+            "uint256" => ParamType::Uint(256),
+            "bool" => ParamType::Bool,
+            "string" => ParamType::String,
+            _ => ParamType::Int(256)
+        }
+    };
+    let i_params: Vec<&str> = substr.split(',').zip(idxs.clone()).filter(|(_, c)| if c == &"1" {true} else {false}).map(|s| s.0).collect();
+    let ni_params: Vec<&str> = substr.split(',').zip(idxs).filter(|(_, c)| if c == &"0" {true} else {false}).map(|s| s.0).collect();
+    println!("i_params: {:#?}\nni_params: {:#?}", i_params, ni_params);
+    let iparam_types: Vec<ParamType> = i_params.into_iter().enumerate().map(clz).collect();
+    let niparam_types: Vec<ParamType> = ni_params.into_iter().enumerate().map(clz).collect();
+    (iparam_types, niparam_types)
+
+}
+
+fn parse_and_concat_data(sig: &str, params: &[H256]) -> String {
+    // let re = Regex::new(r"(\w+)").unwrap();
+    println!("sig: {}\nparams: {:#?}", sig, params);
+    let parts: Vec<&str> = sig.split(',').map(|s| s.trim()).collect();
+    let concated = String::new();
+    let t = parts.into_iter().map(|kind| {
+        match kind {
+            "address" => (),
+            _ => ()
+        }
+    });
+    // let concated = re.captures_iter(sig).map(|kind| format!("{:?}", kind)).collect::<Vec<String>>().join(",");
+    
+    concated
+}
+
+async fn process_range(start: usize, end: usize, web3: &Web3<Http>, contract: &Contract<Http>, event_list: &HashMap<[u8; 32], String>, index: &HashMap<[u8; 32], String>, logger: &FileLogger) {
     
     // let db = client.database(DB_NAME);
     println!("start: {}, end: {}", start, end);
@@ -147,14 +218,37 @@ async fn process_range(start: usize, end: usize, web3: &Web3<Http>, contract: &C
             for _log in logs {
                 println!("log address: {:?}", _log.address);             
                 let mut matched_events = Vec::<String>::new();
+                let mut matched_data = Vec::<String>::new();
                 if _log.address == contract.address() {
                     //blocks
                     // println!("match with contract");
                     logger.log(LogLevel::Info, "contract matched").await;
+
                     // let topics = &log.topics;
                     // let data = &log.data;
                     // println!("# of Events: {}", contract.abi().events().map(|_| 1).collect::<Vec<u32>>().len());
-                    let bs = _log.data.0.bytes();
+                    // let bs = _log.data.0.bytes();
+                    let topics = _log.topics;
+                    let data = _log.data;
+                    println!("Index: {:?}", _log.log_index);
+                    println!("Data: {:#?}", data);
+                    
+                    let sig = topics[0].as_bytes();
+                    if let Some(v) = event_list.get(sig) {
+                        let idx = index.get(sig).unwrap();
+                        println!("matched idx string: {}", idx);
+                        matched_events.push(v.to_owned());
+                        let (i_ptypes, ni_ptypes) = to_param_types(v.as_str(), idx);
+                        // will only decode non-indexed params
+                        let decoded = decode(&ni_ptypes, data.0.as_ref());
+                        if decoded.is_err() {
+                            // that means we have some indexed params here, so look into topics
+                            println!("for {} topics: {:#?}", v, topics);
+                        }
+                        println!("index: {:#?}\nnon-index: {:#?}", i_ptypes, ni_ptypes);
+                        println!("decoded data: {:#?}", decoded);
+                        // matched_data.push()
+                    }
                     
                     // _log.topics.clone().into_iter().for_each(|topic| {
                     //     if let Some(v) = event_list.get(topic.as_bytes()) {
@@ -163,7 +257,7 @@ async fn process_range(start: usize, end: usize, web3: &Web3<Http>, contract: &C
                     // });
                 }
                 // println!("Topics #: {}, Events #: {}\nViz: \n\t{:?}", _log.topics.len(), matched_events.len(), matched_events);
-                println!("Topics #: {}, Data Len: {}\nData: \n\t{:?}", _log.topics.len(), _log.data.0.len(), _log.data.0.chunks_exact(20));
+                // println!("Topics #: {}, Data Len: {}\nData: \n\t{:?}", _log.topics.len(), _log.data.0.len(), _log.data.0.chunks_exact(20));
                 
             }
             // let tx_hash = tx.hash.to_string();

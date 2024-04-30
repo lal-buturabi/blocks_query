@@ -20,4 +20,6 @@ tokio = "1.37.0"
 actix-web = "4.5.1"
 futures = "0.3.30"
 dotenv = "0.15.0"
+regex = "1.10.4"
+ethabi = "18.0.0"
 

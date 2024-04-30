@@ -1,0 +1,15 @@
+[package]
+name = "blocks"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-std = { workspace = true }
+mongodb = { workspace = true }
+bson = { workspace = true } # Needed for using chrono datetime in doc
+# tokio = { workspace = true }
+chrono = { workspace = true } # Used for setting DateTimes
+serde = { workspace = true } # Used in the Map Data into Structs section
+web3 = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }

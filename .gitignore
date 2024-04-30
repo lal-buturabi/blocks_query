@@ -1,0 +1,6 @@
+/target
+*.txt
+*.zip
+node_modules
+target
+

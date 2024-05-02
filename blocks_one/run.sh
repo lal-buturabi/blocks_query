@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-export ABI_PATH="/Users/user/works/gits/one_and_only/blocks_one/src/abi.json"
+export ABI_PATH="/data/works/gits/one_and_only/blocks_one/src/abi.json"
 export RPC_URL1="http://3.23.124.61:8545" # stopped.
 
 export RPC_URL2="http://3.133.2.70:8545" # syncing..

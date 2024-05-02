@@ -1,8 +1,8 @@
-use mongodb::{options::{ClientOptions, InsertOneOptions, ResolverConfig}, Client};
+// use mongodb::{options::{ClientOptions, InsertOneOptions, ResolverConfig}, Client};
 use std::{collections::{HashMap, HashSet}, env, hash::Hash, str::FromStr, sync::Arc};
 use std::error::Error;
 
-use mongodb::bson::doc;
+use mongodb::bson::{doc, Document};
 use web3::{signing::keccak256, transports::Http, types::{BlockId, Filter, FilterBuilder, H160, H256, U64}};
 use web3::types::{Log, BlockNumber, Transaction};
 use web3::Web3;
@@ -18,22 +18,22 @@ use tokio;
 mod logger;
 use logger::{LogLevel, FileLogger};
 
-use crate::logger::Logger;
+// use crate::logger::Logger;
 use hex::encode;
-use regex::Regex;
+// use regex::Regex;
 use ethabi::{ParamType, decode};
 
 // DB related constants
-const DB_NAME: &str = "Nexa_Diagnostics";
-const TXN_COLLECTION: &str = "txns_table";
-const EVENT_COLLECTION: &str = "events_table";
-const BLOCK_COLLECTION: &str = "blocks_table";
+// const DB_NAME: &str = "Nexa_Diagnostics";
+// const TXN_COLLECTION: &str = "txns_table";
+// const EVENT_COLLECTION: &str = "events_table";
+// const BLOCK_COLLECTION: &str = "blocks_table";
 
 // log file path constants
 const ERR_LOG_FILE: &str = "./error.log";
 const INFO_LOG_FILE: &str = "./info.log";
-const DEBUG_LOG_FILE: &str = "./debug.log";
-const WARN_LOG_FILE: &str = "./warning.log";
+// const DEBUG_LOG_FILE: &str = "./debug.log";
+// const WARN_LOG_FILE: &str = "./warning.log";
 
 // struct CustomHashSet<T>(Vec<>)
 
@@ -71,48 +71,53 @@ async fn main() -> Result<(), Box<dyn Error>> {
         contract_address,
         contract_abi,
     )?);
-  
-    let mut index: HashMap<[u8; 32], String> = HashMap::new();  
     
-    let event_list = Arc::new(
+    let ev_sighashs = Arc::new(
         contract.abi().events().into_iter().map(|event| { 
             let sig = format!("{}({})", event.name, event.inputs.iter().map(|i| i.kind.to_string()).collect::<Vec<_>>().join(","));
             let index_str = event.inputs.iter().map(|ip| if ip.indexed { "1" } else { "0" }).collect::<Vec<_>>().join(",");
             let h = keccak256(sig.as_bytes());
             println!("{}\t\t\t{:?}\n{}\n", sig, encode(h), index_str);
-            index.insert(h, index_str);
-            (h, sig)
-        }).collect::<HashMap<[u8; 32], String>>());
-        println!("\n\n");
-    // return Ok(());
-    let start_block_height: usize = 1543162;
+            
+            (h, (sig, index_str))
+        }).collect::<HashMap<[u8; 32], (String, String)>>()
+    );
+    println!("\n\n");
+    //let start_block_height: usize = 1543162;
     let start_block_height: usize = 1801212;
     let block_height = web3.eth().block_number().await.unwrap().as_usize();
     let total = block_height - start_block_height;
     let each = total / 1000;
 
-    println!("height: {}\nstart: {}\n", block_height, start_block_height);
+    println!("height: {}\nstart: {}\neach: {}\ntotal: {}", block_height, start_block_height, each, total);
+    // return Ok(());
     let mut tasks = Vec::new();
 
     // let logger = Arc::new(RefCell::new(FileLogger::new(INFO_LOG_FILE, ERR_LOG_FILE)?));
     let mut logger = Arc::new(FileLogger::new(INFO_LOG_FILE, ERR_LOG_FILE)?);
 
-    for i in 0..1usize {
+    for _ in 0..1usize {
         let _web3 = web3.clone();
         let _contract = contract.clone();
         // let _client = client.clone();
-        let _event_list = event_list.clone();
-        let _index = index.clone();
+        let _ev_sighashs = ev_sighashs.clone();
         
         let mut _logger = logger.clone();
         tasks.push(task::spawn(async move {
-            process_range(start_block_height, start_block_height, &_web3, &_contract, &_event_list, &_index, &_logger).await;
+            process_range(
+                start_block_height, 
+                start_block_height, 
+                &_web3, 
+                &_contract, 
+                &_ev_sighashs, 
+                &_logger
+            ).await;
         }));
     }
 
     web3::block_on(async {
-        for mut task in tasks {
-            task.await;
+        for task in tasks {
+            let _ = task.await;
         }
     });
 
@@ -121,13 +126,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
    Ok(())
 }
 
-#[derive(Debug, Default)]
-struct BlockModel {
-    hash: String,
-    number: usize,
-    number_of_events: u16,
-
-}
 
 fn to_param_types(sig: &str, idx: &str) -> (Vec<ParamType>, Vec<ParamType>) {
     let mut substr = String::new();
@@ -147,7 +145,7 @@ fn to_param_types(sig: &str, idx: &str) -> (Vec<ParamType>, Vec<ParamType>) {
     }
     println!("event signature: {}", substr);
     let idxs = idx.split(',');
-    println!("IDXs: {:?}", idxs);
+    // println!("IDXs: {:?}", idxs);
     let clz = |(i, s)| {
         match s {
             "address" => ParamType::Address,
@@ -167,30 +165,98 @@ fn to_param_types(sig: &str, idx: &str) -> (Vec<ParamType>, Vec<ParamType>) {
     };
     let i_params: Vec<&str> = substr.split(',').zip(idxs.clone()).filter(|(_, c)| if c == &"1" {true} else {false}).map(|s| s.0).collect();
     let ni_params: Vec<&str> = substr.split(',').zip(idxs).filter(|(_, c)| if c == &"0" {true} else {false}).map(|s| s.0).collect();
-    println!("i_params: {:#?}\nni_params: {:#?}", i_params, ni_params);
+    // println!("i_params: {:#?}\nni_params: {:#?}", i_params, ni_params);
     let iparam_types: Vec<ParamType> = i_params.into_iter().enumerate().map(clz).collect();
     let niparam_types: Vec<ParamType> = ni_params.into_iter().enumerate().map(clz).collect();
     (iparam_types, niparam_types)
 
 }
 
-fn parse_and_concat_data(sig: &str, params: &[H256]) -> String {
-    // let re = Regex::new(r"(\w+)").unwrap();
-    println!("sig: {}\nparams: {:#?}", sig, params);
-    let parts: Vec<&str> = sig.split(',').map(|s| s.trim()).collect();
-    let concated = String::new();
-    let t = parts.into_iter().map(|kind| {
-        match kind {
-            "address" => (),
-            _ => ()
-        }
-    });
-    // let concated = re.captures_iter(sig).map(|kind| format!("{:?}", kind)).collect::<Vec<String>>().join(",");
+async fn decode_logs(
+    caddr: &H160,
+    logs: Vec<Log>, 
+    ev_sighashs: &HashMap<[u8; 32], (String, String)>) -> HashMap<H256, Vec<String>> {
     
-    concated
+    let mut block_to_evts_map = HashMap::<H256, Vec<String>>::new();
+    let mut matched_evts: Vec<String> = Vec::new();
+    let mut matched_data_vec = Vec::<String>::new();
+    let len = logs.len();
+
+    for mut i in 0..len {
+        let log = logs.get(i).unwrap().clone();
+        println!("log address: {:?}", log.address);             
+        let mut event_data_str = String::new();
+        // let mut matched_data = Vec::<String>::new();
+        if &log.address == caddr {
+            let topics = log.topics;
+            let data = log.data;
+            // println!("Index: {:?}", log.log_index);
+            println!("Data: {:#?}", data);
+            
+            let sig = topics[0].as_bytes();
+            if let Some(v) = ev_sighashs.get(sig) {
+                // push event signature
+                event_data_str.push_str(&v.0);
+
+                let (i_ptypes, ni_ptypes) = to_param_types(&v.0, &v.1);
+                
+                // will only decode non-indexed params
+                if ni_ptypes.len() > 0 {
+                    let decoded = decode(&ni_ptypes, data.0.as_ref());
+                    
+                    if decoded.is_ok() {
+                        println!("decoded: {:?}", decoded);
+                        // that means we have some indexed params here, so look into topics
+                        // push non-indexed params
+                        event_data_str.push_str(&format!(":NonIndexed({})", decoded.unwrap().into_iter().map(|token| format!("0x{}", token)).collect::<Vec<String>>().join(",")));
+                    }
+                }
+
+                if i_ptypes.len() > 0 {
+                
+                    println!("[O] Topics: {:#?}", topics);
+                    let t: String = topics.into_iter().skip(1).map(|topic| {
+                        let s = format!("{:?}", topic).trim_start_matches(|c| c == '0' || c == 'x').to_owned();
+                        if s.is_empty() {
+                            "0x0".to_owned()
+                        } else {
+                            format!("0x{}", s)
+                        }
+                    }).collect::<Vec<_>>().join(",");
+                    println!("Topics: {:?}", t);
+                    // finally push Indexed params
+                    event_data_str.push_str(&format!(":Indexed({})", t));
+                }
+                
+                // println!("index: {:#?}\nnon-index: {:#?}", i_ptypes, ni_ptypes);
+                // matched_data.push()
+            }
+        }
+        // put the string into the vec under its block hash key in the map
+        // no  matter what order are the logs in wrt block hash
+        block_to_evts_map.entry(log.block_hash.unwrap())
+            .or_insert(Vec::new())
+            .push(event_data_str);
+    }
+
+    //println!("decoded data: {:#?}", event_data_str);
+   block_to_evts_map 
 }
 
-async fn process_range(start: usize, end: usize, web3: &Web3<Http>, contract: &Contract<Http>, event_list: &HashMap<[u8; 32], String>, index: &HashMap<[u8; 32], String>, logger: &FileLogger) {
+// fn zero_trim(s: &[u8]) -> String {
+    // println!("trimming.. {:?}", s);
+    // let mut s: Vec<_> = s.into_iter().skip(2).collect();
+    // let mut i = 0;
+    // while s.get(i).unwrap() == &&0 {
+        // s.remove(i);
+        // i += 1;
+    // }
+    // let s = s.iter().map(|byte| format!("{:02x}", byte)).collect();
+    // println!("trimmed: {}", s);
+    // s
+// }
+
+async fn process_range(start: usize, end: usize, web3: &Web3<Http>, contract: &Contract<Http>, ev_sighashs: &HashMap<[u8; 32],  (String, String)>, logger: &FileLogger) {
     
     // let db = client.database(DB_NAME);
     println!("start: {}, end: {}", start, end);
@@ -202,11 +268,12 @@ async fn process_range(start: usize, end: usize, web3: &Web3<Http>, contract: &C
         let bn_start = BlockNumber::Number(U64::from(bnum));
         let bn_end = bn_start.clone();
         println!("Block #: {} ", bnum);
-        // let bnum_str = format!("{}", bnum);
-        let eventFilter = FilterBuilder::default().address(vec![contract.address()]).from_block(bn_start).to_block(bn_end).build();
-        let logs: Vec<Log> = web3.eth().logs(eventFilter).await.unwrap();
-       // let block_hash = block.hash.unwrap().to_string();
-       println!("got logs: {}", logs.len());
+        
+        let logFilter = FilterBuilder::default().address(vec![contract.address()]).from_block(bn_start).to_block(bn_end).build();
+        let logs: Vec<Log> = web3.eth().logs(logFilter).await.unwrap();
+        
+        println!("got logs: {}", logs.len());
+        let logs_decoded = decode_logs(&contract.address(), logs, ev_sighashs).await;
         
         // let mut num_of_events_in_a_block = 0;
         // let mut num_of_txns_in_a_block = 0;
@@ -215,57 +282,23 @@ async fn process_range(start: usize, end: usize, web3: &Web3<Http>, contract: &C
 
            // num_of_txns_in_a_block +=1 ;
           
-            for _log in logs {
-                println!("log address: {:?}", _log.address);             
-                let mut matched_events = Vec::<String>::new();
-                let mut matched_data = Vec::<String>::new();
-                if _log.address == contract.address() {
-                    //blocks
-                    // println!("match with contract");
-                    logger.log(LogLevel::Info, "contract matched").await;
-
-                    // let topics = &log.topics;
-                    // let data = &log.data;
-                    // println!("# of Events: {}", contract.abi().events().map(|_| 1).collect::<Vec<u32>>().len());
-                    // let bs = _log.data.0.bytes();
-                    let topics = _log.topics;
-                    let data = _log.data;
-                    println!("Index: {:?}", _log.log_index);
-                    println!("Data: {:#?}", data);
-                    
-                    let sig = topics[0].as_bytes();
-                    if let Some(v) = event_list.get(sig) {
-                        let idx = index.get(sig).unwrap();
-                        println!("matched idx string: {}", idx);
-                        matched_events.push(v.to_owned());
-                        let (i_ptypes, ni_ptypes) = to_param_types(v.as_str(), idx);
-                        // will only decode non-indexed params
-                        let decoded = decode(&ni_ptypes, data.0.as_ref());
-                        if decoded.is_err() {
-                            // that means we have some indexed params here, so look into topics
-                            println!("for {} topics: {:#?}", v, topics);
-                        }
-                        println!("index: {:#?}\nnon-index: {:#?}", i_ptypes, ni_ptypes);
-                        println!("decoded data: {:#?}", decoded);
-                        // matched_data.push()
-                    }
-                    
-                    // _log.topics.clone().into_iter().for_each(|topic| {
-                    //     if let Some(v) = event_list.get(topic.as_bytes()) {
-                    //         matched_events.push(v.to_owned());
-                    //     }
-                    // });
-                }
-                // println!("Topics #: {}, Events #: {}\nViz: \n\t{:?}", _log.topics.len(), matched_events.len(), matched_events);
-                // println!("Topics #: {}, Data Len: {}\nData: \n\t{:?}", _log.topics.len(), _log.data.0.len(), _log.data.0.chunks_exact(20));
-                
-            }
+            
             // let tx_hash = tx.hash.to_string();
-            // let tx_doc =  doc! {
-            //     "block_num": bnum_str.as_str(),
-            //     "block_hash": block_hash.as_str(),
-            //     "txn_hash": tx_hash,
+            // let block_doc =  doc! {
+            //     "events": logs_decoded, 
+            //     // "block_num": bnum_str.as_str(),
+            //     //"block_hash": block_hash.as_str(),
             // };
+            let documents: Vec<Document> = logs_decoded.iter().map(|(block_hash, events)| {
+                let events_string = events.join("::");
+                
+                doc! {
+                    "block_hash": format!("{:?}", block_hash),
+                    "events": events_string,
+                    "num_of_events": events.len() as i32,
+                }
+            }).collect();   
+            println!("Document: {:#?}", documents);
             // let h =  db.collection(TXN_COLLECTION).insert_one(tx_doc, InsertOneOptions::default()).await;
             // if h.is_err() {
             //     logger.log(LogLevel::Err, format!("{:#?}", h.err()).as_str()).await

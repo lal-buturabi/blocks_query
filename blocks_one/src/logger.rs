@@ -41,7 +41,7 @@ impl Logger for FileLogger {
             LogLevel::Info => &self.info_file,
             LogLevel::Err => &self.err_file,
         };
-        file.lock().await.write_all(fmt_msg.as_bytes());
+        let _ = file.lock().await.write_all(fmt_msg.as_bytes());
     }
 }
 

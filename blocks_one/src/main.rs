@@ -23,7 +23,7 @@ use logger::{LogLevel, FileLogger};
 use hex::encode;
 // use regex::Regex;
 use ethabi::{ParamType, decode};
-
+use bson::{Bson};
 // DB related constants
 // const DB_NAME: &str = "Nexa_Diagnostics";
 // const TXN_COLLECTION: &str = "txns_table";
@@ -177,15 +177,17 @@ fn to_param_types(sig: &str, idx: &str) -> (Vec<ParamType>, Vec<ParamType>) {
 async fn decode_logs(
     caddr: &H160,
     logs: Vec<Log>, 
-    ev_sighashs: &HashMap<[u8; 32], (String, String)>) -> HashMap<H256, Vec<String>> {
+    ev_sighashs: &HashMap<[u8; 32], (String, String)>) -> (HashMap<H256, Vec<String>>, HashMap<H256, i32>) {
     
     let mut block_to_evts_map = HashMap::<H256, Vec<String>>::new();
+    let mut bnum_map = HashMap::<H256, i32>::new();
     let mut matched_evts: Vec<String> = Vec::new();
     let mut matched_data_vec = Vec::<String>::new();
     let len = logs.len();
 
     for mut i in 0..len {
         let log = logs.get(i).unwrap().clone();
+        
         // println!("log address: {:?}", log.address);             
         let mut event_data_str = String::new();
         // let mut matched_data = Vec::<String>::new();
@@ -236,27 +238,18 @@ async fn decode_logs(
         }
         // put the string into the vec under its block hash key in the map
         // no  matter what order are the logs in wrt block hash
-        block_to_evts_map.entry(log.block_hash.unwrap())
+        let bh = log.block_hash.unwrap();
+        let bn = log.block_number.unwrap().as_u32() as i32;
+        bnum_map.entry(bh)
+            .or_insert(bn);
+        block_to_evts_map.entry(bh)
             .or_insert(Vec::new())
             .push(event_data_str);
     }
 
     //println!("decoded data: {:#?}", event_data_str);
-   block_to_evts_map 
+    (block_to_evts_map, bnum_map) 
 }
-
-// fn zero_trim(s: &[u8]) -> String {
-    // println!("trimming.. {:?}", s);
-    // let mut s: Vec<_> = s.into_iter().skip(2).collect();
-    // let mut i = 0;
-    // while s.get(i).unwrap() == &&0 {
-        // s.remove(i);
-        // i += 1;
-    // }
-    // let s = s.iter().map(|byte| format!("{:02x}", byte)).collect();
-    // println!("trimmed: {}", s);
-    // s
-// }
 
 fn compress_it(s: &str) -> Result<Vec<u8>, std::io::Error> {
     let mut enc = ZlibEncoder::new(Vec::new(), Compression::default());
@@ -275,42 +268,23 @@ fn decompress_it(d: &[u8]) -> Result<String, std::io::Error> {
 async fn process_range(start: usize, end: usize, web3: &Web3<Http>, contract: &Contract<Http>, ev_sighashs: &HashMap<[u8; 32],  (String, String)>, logger: &FileLogger) {
     
     // let db = client.database(DB_NAME);
-    // println!("start: {}, end: {}", start, end);
-    // println!("current block: {}", web3.eth().block_number().await.unwrap());
-    // println!("chainId: {}", web3.eth().chain_id().await.unwrap());
-    // println!("protocol_version: {}", web3.eth().protocol_version().await.unwrap());
     
-    for bnum in start..=end {
-        let bn_start = BlockNumber::Number(U64::from(bnum));
-        let bn_end = bn_start.clone();
-        println!("Block #: {} ", bnum);
+        let bn_start = BlockNumber::Number(U64::from(start));
+        let bn_end = BlockNumber::Number(U64::from(end));
         
         let logFilter = FilterBuilder::default().address(vec![contract.address()]).from_block(bn_start).to_block(bn_end).build();
         let logs: Vec<Log> = web3.eth().logs(logFilter).await.unwrap();
         
         println!("got logs: {}", logs.len());
-        let logs_decoded = decode_logs(&contract.address(), logs, ev_sighashs).await;
+        let (logs_decoded, bnum_map) = decode_logs(&contract.address(), logs, ev_sighashs).await;
         
-        // let mut num_of_events_in_a_block = 0;
-        // let mut num_of_txns_in_a_block = 0;
-        // let mut event_signatures = Vec::<String>::new();
-        // let blocks: Vec<BlockModel> = Vec::with_capacity(end - start + 1);
-
-           // num_of_txns_in_a_block +=1 ;
-          
-            
-            // let tx_hash = tx.hash.to_string();
-            // let block_doc =  doc! {
-            //     "events": logs_decoded, 
-            //     // "block_num": bnum_str.as_str(),
-            //     //"block_hash": block_hash.as_str(),
-            // };
             let documents: Vec<Document> = logs_decoded.iter().map(|(block_hash, events)| {
                 let joined = events.join("::");
                 let events_string = encode(compress_it(&joined).unwrap());
                 // println!("compressed: {} decompressed: {} original: {}", events_string.len(),decompress_it(&hex::decode(&events_string).unwrap()).unwrap().len(), joined.len());
                 // println!("Decompressed: {}", decompress_it(&hex::decode(&events_string).unwrap()).unwrap());
                 doc! {
+                    "block_number":bnum_map.get(&block_hash).unwrap(),
                     "block_hash": format!("{:?}", block_hash),
                     "events": events_string,
                     "num_of_events": events.len() as i32,
@@ -345,5 +319,5 @@ async fn process_range(start: usize, end: usize, web3: &Web3<Http>, contract: &C
         //     )
         // ).await;
         
-    }
+    
 }

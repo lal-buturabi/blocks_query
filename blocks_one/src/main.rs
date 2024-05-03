@@ -2,6 +2,8 @@
 use std::{collections::{HashMap, HashSet}, env, hash::Hash, str::FromStr, sync::Arc};
 use std::error::Error;
 
+use flate2::{write::ZlibEncoder, read::ZlibDecoder, Compression};
+use std::io::{Write, Read};
 use mongodb::bson::{doc, Document};
 use web3::{signing::keccak256, transports::Http, types::{BlockId, Filter, FilterBuilder, H160, H256, U64}};
 use web3::types::{Log, BlockNumber, Transaction};
@@ -10,7 +12,6 @@ use web3::contract::Contract;
 
 use serde_json::Value;
 use std::fs::File;
-use std::io::Read;
 use tokio::task;
 
 use tokio;
@@ -85,11 +86,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("\n\n");
     //let start_block_height: usize = 1543162;
     let start_block_height: usize = 1801212;
+    let end_block_height: usize = 1801214;
     let block_height = web3.eth().block_number().await.unwrap().as_usize();
     let total = block_height - start_block_height;
     let each = total / 1000;
 
-    println!("height: {}\nstart: {}\neach: {}\ntotal: {}", block_height, start_block_height, each, total);
+    // println!("height: {}\nstart: {}\neach: {}\ntotal: {}", block_height, start_block_height, each, total);
     // return Ok(());
     let mut tasks = Vec::new();
 
@@ -106,7 +108,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         tasks.push(task::spawn(async move {
             process_range(
                 start_block_height, 
-                start_block_height, 
+                end_block_height, 
                 &_web3, 
                 &_contract, 
                 &_ev_sighashs, 
@@ -143,7 +145,7 @@ fn to_param_types(sig: &str, idx: &str) -> (Vec<ParamType>, Vec<ParamType>) {
             substr.push(c)
         }
     }
-    println!("event signature: {}", substr);
+    // println!("event signature: {}", substr);
     let idxs = idx.split(',');
     // println!("IDXs: {:?}", idxs);
     let clz = |(i, s)| {
@@ -184,14 +186,14 @@ async fn decode_logs(
 
     for mut i in 0..len {
         let log = logs.get(i).unwrap().clone();
-        println!("log address: {:?}", log.address);             
+        // println!("log address: {:?}", log.address);             
         let mut event_data_str = String::new();
         // let mut matched_data = Vec::<String>::new();
         if &log.address == caddr {
             let topics = log.topics;
             let data = log.data;
             // println!("Index: {:?}", log.log_index);
-            println!("Data: {:#?}", data);
+            // println!("Data: {:#?}", data);
             
             let sig = topics[0].as_bytes();
             if let Some(v) = ev_sighashs.get(sig) {
@@ -205,7 +207,7 @@ async fn decode_logs(
                     let decoded = decode(&ni_ptypes, data.0.as_ref());
                     
                     if decoded.is_ok() {
-                        println!("decoded: {:?}", decoded);
+                        // println!("decoded: {:?}", decoded);
                         // that means we have some indexed params here, so look into topics
                         // push non-indexed params
                         event_data_str.push_str(&format!(":NonIndexed({})", decoded.unwrap().into_iter().map(|token| format!("0x{}", token)).collect::<Vec<String>>().join(",")));
@@ -214,7 +216,7 @@ async fn decode_logs(
 
                 if i_ptypes.len() > 0 {
                 
-                    println!("[O] Topics: {:#?}", topics);
+                    // println!("[O] Topics: {:#?}", topics);
                     let t: String = topics.into_iter().skip(1).map(|topic| {
                         let s = format!("{:?}", topic).trim_start_matches(|c| c == '0' || c == 'x').to_owned();
                         if s.is_empty() {
@@ -223,7 +225,7 @@ async fn decode_logs(
                             format!("0x{}", s)
                         }
                     }).collect::<Vec<_>>().join(",");
-                    println!("Topics: {:?}", t);
+                    // println!("Topics: {:?}", t);
                     // finally push Indexed params
                     event_data_str.push_str(&format!(":Indexed({})", t));
                 }
@@ -256,13 +258,27 @@ async fn decode_logs(
     // s
 // }
 
+fn compress_it(s: &str) -> Result<Vec<u8>, std::io::Error> {
+    let mut enc = ZlibEncoder::new(Vec::new(), Compression::default());
+    
+    enc.write_all(s.as_bytes())?;
+    enc.finish()
+}
+
+fn decompress_it(d: &[u8]) -> Result<String, std::io::Error> {
+    let mut dec = ZlibDecoder::new(d);
+    let mut s = String::new();
+    dec.read_to_string(&mut s)?;
+    Ok(s)
+}
+
 async fn process_range(start: usize, end: usize, web3: &Web3<Http>, contract: &Contract<Http>, ev_sighashs: &HashMap<[u8; 32],  (String, String)>, logger: &FileLogger) {
     
     // let db = client.database(DB_NAME);
-    println!("start: {}, end: {}", start, end);
-    println!("current block: {}", web3.eth().block_number().await.unwrap());
-    println!("chainId: {}", web3.eth().chain_id().await.unwrap());
-    println!("protocol_version: {}", web3.eth().protocol_version().await.unwrap());
+    // println!("start: {}, end: {}", start, end);
+    // println!("current block: {}", web3.eth().block_number().await.unwrap());
+    // println!("chainId: {}", web3.eth().chain_id().await.unwrap());
+    // println!("protocol_version: {}", web3.eth().protocol_version().await.unwrap());
     
     for bnum in start..=end {
         let bn_start = BlockNumber::Number(U64::from(bnum));
@@ -290,8 +306,10 @@ async fn process_range(start: usize, end: usize, web3: &Web3<Http>, contract: &C
             //     //"block_hash": block_hash.as_str(),
             // };
             let documents: Vec<Document> = logs_decoded.iter().map(|(block_hash, events)| {
-                let events_string = events.join("::");
-                
+                let joined = events.join("::");
+                let events_string = encode(compress_it(&joined).unwrap());
+                // println!("compressed: {} decompressed: {} original: {}", events_string.len(),decompress_it(&hex::decode(&events_string).unwrap()).unwrap().len(), joined.len());
+                // println!("Decompressed: {}", decompress_it(&hex::decode(&events_string).unwrap()).unwrap());
                 doc! {
                     "block_hash": format!("{:?}", block_hash),
                     "events": events_string,

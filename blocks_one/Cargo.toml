@@ -18,3 +18,4 @@ serde_json = { workspace = true }
 tokio = { workspace = true }
 regex = { workspace = true }
 ethabi = { workspace = true }
+flate2 = { workspace = true }

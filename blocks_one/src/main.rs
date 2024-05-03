@@ -1,4 +1,4 @@
-use mongodb::{options::{ClientOptions, InsertManyOptions, ResolverConfig}, Client};
+use mongodb::{options::{ClientOptions, InsertManyOptions, ResolverConfig, WriteConcern}, Client, error::Error as MError};
 use std::{collections::HashMap, env, str::FromStr, sync::Arc};
 use std::error::Error;
 
@@ -18,6 +18,7 @@ use tokio;
 
 mod logger;
 use logger::{LogLevel, FileLogger};
+use std::fs::OpenOptions;
 
 use crate::logger::Logger;
 use hex::encode;
@@ -25,8 +26,11 @@ use hex::encode;
 use ethabi::{ParamType, decode};
 use async_std::sync::Mutex;
 use bson::{Bson};
+use std::sync::atomic::{AtomicUsize, Ordering};     
+use tokio::sync::Semaphore;
+
 // DB related constants
-const DB_NAME: &str = "Nexa_Events_Data_2";
+const DB_NAME: &str = "Nexa_Events_Data_4";
 // const TXN_COLLECTION: &str = "txns_table";
 const EVT_COLLECTION: &str = "events_table";
 // const BLOCK_COLLECTION: &str = "blocks_table";
@@ -34,8 +38,15 @@ const EVT_COLLECTION: &str = "events_table";
 // log file path constants
 const ERR_LOG_FILE: &str = "./error.log";
 const INFO_LOG_FILE: &str = "./info.log";
+const CSV_FILE: &str = "./events.csv";
 // const DEBUG_LOG_FILE: &str = "./debug.log";
 // const WARN_LOG_FILE: &str = "./warning.log";
+static PROCESSED_BATCHES: AtomicUsize = AtomicUsize::new(0);
+
+lazy_static::lazy_static! {
+    static ref FILE_MUTEX: Mutex<()> = Mutex::new(());
+}
+type SafeFile = Arc<Mutex<std::io::BufWriter<std::fs::File>>>;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -46,9 +57,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
    let abi_path =
       env::var("ABI_PATH").expect("You must set the RPC_URL environment var!");
 
-   let options =
+   let mut options =
       ClientOptions::parse_with_resolver_config(&client_uri, ResolverConfig::cloudflare())
          .await?;
+    options.write_concern = Some(WriteConcern::MAJORITY);
+   
    let client = Arc::new(Client::with_options(options)?);
 
 
@@ -56,6 +69,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let web3 = Arc::new(Web3::new(http_transport));
 
     let mut file = File::open(abi_path).expect("Failed to open ABI file");
+    
     let mut abi_string = String::new();
     file.read_to_string(&mut abi_string).expect("Failed to read ABI file");
 
@@ -90,13 +104,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let total = block_height - start_block_height;
     let batch_size = total / num_of_batches;
     let mut failed_batches = Arc::new(Mutex::new(Vec::<(usize, usize)>::new()));
+    let semaphore = Arc::new(Semaphore::new(10));
     
+    let file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .append(true)
+        .open(CSV_FILE)?;
+    let safe_file = Arc::new(Mutex::new(std::io::BufWriter::new(file)));
+
     // println!("height: {}\nstart: {}\neach: {}\ntotal: {}", block_height, start_block_height, each, total);
     // return Ok(());
     let mut tasks = Vec::new();
 
     //let logger = Arc::new(RefCell::new(FileLogger::new(INFO_LOG_FILE, ERR_LOG_FILE)?));
-    let mut logger = Arc::new(FileLogger::new(INFO_LOG_FILE, ERR_LOG_FILE)?);
+    let logger = Arc::new(FileLogger::new(INFO_LOG_FILE, ERR_LOG_FILE)?);
 
     for i in 0..num_of_batches {
         let _web3 = Arc::clone(&web3);
@@ -105,7 +127,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let _failed_batches = Arc::clone(&mut failed_batches);
         let _ev_sighashs = Arc::clone(&ev_sighashs);
         let mut _logger = Arc::clone(&logger);
-        
+        let semaphore = Arc::clone(&semaphore);
+        let _safe_file = Arc::clone(&safe_file);
+
         let bstart = start_block_height + i * batch_size;
         let bend = if i == num_of_batches - 1 {
             block_height
@@ -113,29 +137,104 @@ async fn main() -> Result<(), Box<dyn Error>> {
             start_block_height  + (i + 1) * batch_size - 1
         };
 
-        tasks.push(task::spawn(async move {
-            process_range(
-                bstart, 
-                bend, 
-                _web3, 
-                _contract, 
-                _failed_batches,
-                _ev_sighashs, 
-                _logger,
-                _client
-            ).await;
-        }));
+        let task = task::spawn(async move {
+            let _permit = semaphore.acquire().await.expect("Failed to acquire semaphore permit");
+            loop {
+                if let Err(err) = process_range(
+                    bstart, 
+                    bend, 
+                    Arc::clone(&_web3), 
+                    Arc::clone(&_contract), 
+                    Arc::clone(&_failed_batches),
+                    Arc::clone(&_ev_sighashs), 
+                    Arc::clone(&_logger), 
+                    Arc::clone(&_client),
+                    Arc::clone(&_safe_file)
+                ).await {
+                    eprintln!("Error processing range: {}", err);
+                    // Retry the batch if there's any error
+                    continue;
+                }
+                break;
+            }
+           
+            PROCESSED_BATCHES.fetch_add(1, Ordering::Relaxed);
+            print_progress(i + 1, num_of_batches, bstart, bend);
+        });
+
+        tasks.push(task);
     }
 
-    web3::block_on(async {
-        for task in tasks {
-            let _ = task.await;
-        }
-    });
+    for task in tasks {
+        task.await?;
+    }
 
-    println!("Done!");
+    println!("All batches processed!");
 
    Ok(())
+}
+
+async fn process_range(
+    start: usize, 
+    end: usize, 
+    web3: Arc<Web3<Http>>, 
+    contract: Arc<Contract<Http>>, 
+    failed_batches: Arc<Mutex<Vec<(usize, usize)>>>,
+    ev_sighashs: Arc<Mutex<HashMap<[u8; 32],  (String, String)>>>, 
+    logger: Arc<FileLogger>,
+    client: Arc<Client>,
+    safe_file: SafeFile
+) -> Result<(), Box<dyn Error>> {
+    
+    let db = client.database(DB_NAME);
+
+    let bn_start = BlockNumber::Number(U64::from(start));
+    let bn_end = BlockNumber::Number(U64::from(end));
+    
+    let log_filter = FilterBuilder::default().address(vec![contract.address()]).from_block(bn_start).to_block(bn_end).build();
+    let logs_res = web3.eth().logs(log_filter).await;
+    if let Err(err) = logs_res {
+        // wait for the lock
+        let mut fb = failed_batches.lock().await;
+        fb.push((start.clone(), end.clone()));
+        drop(fb);
+        logger.log(LogLevel::Err, &format!("Log Fetch Failure ({}, {}): {}", start, end, err)).await;
+        return Err(err.into());
+    }
+
+    let logs = logs_res.unwrap();
+    
+    // println!("got logs: {}", logs.len());
+    let mut num_of_events = 0;
+
+    let (logs_decoded, bnum_map) = decode_logs(&contract.address(), logs, &ev_sighashs).await;
+
+    let documents: Vec<Document> = logs_decoded.iter().map(|(block_hash, events)| {
+        let joined = events.join("::");
+        let events_string = encode(compress_it(&joined).unwrap());
+        // println!("compressed: {} decompressed: {} original: {}", events_string.len(),decompress_it(&hex::decode(&events_string).unwrap()).unwrap().len(), joined.len());
+        // println!("Decompressed: {}", decompress_it(&hex::decode(&events_string).unwrap()).unwrap());
+        
+        num_of_events += events.len();
+
+        doc! {
+            "block_number":bnum_map.get(&block_hash).unwrap(),
+            "block_hash": format!("{:?}", block_hash),
+            "events": events_string,
+            "num_of_events": events.len() as i32,
+        }
+    }).collect();   
+    // println!("Document: {:#?}", documents);
+
+    let insert_result = db.collection(EVT_COLLECTION).insert_many(documents.clone(), InsertManyOptions::default()).await;
+    if let Err(err) = insert_result {
+        logger.log(LogLevel::Err, &format!("Failed to insert documents to DB ({}, {}): {}", start, end, err)).await;
+
+        // Save documents to CSV file
+        let _ = save_documents_to_csv(documents, start, end, safe_file).await;
+    }
+    
+    Ok(())
 }
 
 
@@ -187,7 +286,7 @@ fn to_param_types(sig: &str, idx: &str) -> (Vec<ParamType>, Vec<ParamType>) {
 async fn decode_logs(
     caddr: &H160,
     logs: Vec<Log>, 
-    ev_sighashs: &HashMap<[u8; 32], (String, String)>) -> (HashMap<H256, Vec<String>>, HashMap<H256, i32>) {
+    ev_sighashs: &Arc<Mutex<HashMap<[u8; 32], (String, String)>>>) -> (HashMap<H256, Vec<String>>, HashMap<H256, i32>) {
     
     let mut block_to_evts_map = HashMap::<H256, Vec<String>>::new();
     let mut bnum_map = HashMap::<H256, i32>::new();
@@ -208,7 +307,8 @@ async fn decode_logs(
             // println!("Data: {:#?}", data);
             
             let sig = topics[0].as_bytes();
-            if let Some(v) = ev_sighashs.get(sig) {
+            let sighashs = ev_sighashs.lock().await;
+            if let Some(v) = sighashs.get(sig) {
                 // push event signature
                 event_data_str.push_str(&v.0);
 
@@ -245,6 +345,7 @@ async fn decode_logs(
                 // println!("index: {:#?}\nnon-index: {:#?}", i_ptypes, ni_ptypes);
                 // matched_data.push()
             }
+            drop(sighashs);
         }
         // put the string into the vec under its block hash key in the map
         // no  matter what order are the logs in wrt block hash
@@ -275,71 +376,23 @@ fn decompress_it(d: &[u8]) -> Result<String, std::io::Error> {
     Ok(s)
 }
 
-async fn process_range(
-    start: usize, 
-    end: usize, 
-    web3: Arc<Web3<Http>>, 
-    contract: Arc<Contract<Http>>, 
-    failed_batches: Arc<Mutex<Vec<(usize, usize)>>>,
-    ev_sighashs: Arc<Mutex<HashMap<[u8; 32],  (String, String)>>>, 
-    logger: Arc<FileLogger>,
-    client: Arc<Client>
-) {
-    
-    let db = client.database(DB_NAME);
+fn print_progress(current_batch: usize, total_batches: usize, start_block: usize, end_block: usize) {
+    println!("Batch {} of {}: Processing blocks {} to {}", current_batch, total_batches, start_block, end_block);
+}
 
-    let bn_start = BlockNumber::Number(U64::from(start));
-    let bn_end = BlockNumber::Number(U64::from(end));
-    
-    let logFilter = FilterBuilder::default().address(vec![contract.address()]).from_block(bn_start).to_block(bn_end).build();
-    let logs_res = web3.eth().logs(logFilter).await;
-    // let logs: Vec<Log> = web3.eth().logs(logFilter).await;
-    if logs_res.is_err() {
-        // wait for the lock
-        let mut fb = failed_batches.lock().await;
-        fb.push((start.clone(), end.clone()));
-        logger.log(LogLevel::Err, &format!("Log Fetch Failure ({}, {})", start, end));
-        return;
+async fn save_documents_to_csv(documents: Vec<Document>, start: usize, end: usize, file: SafeFile) -> std::io::Result<()> {
+    let mut file = file.lock().await;
+
+    // Write documents
+    for doc in documents {
+        let block_number = doc.get("block_number").and_then(|bn| bn.as_i32()).unwrap_or_default();
+        let block_hash = doc.get("block_hash").and_then(|bh| bh.as_str()).unwrap_or_default();
+        let events = doc.get("events").and_then(|e| e.as_str()).unwrap_or_default();
+        let num_of_events = doc.get("num_of_events").and_then(|noe| noe.as_i32()).unwrap_or_default();
+
+        writeln!(file, "{},{},{},{}", block_number, block_hash, events, num_of_events)?;
     }
 
-    let logs = logs_res.unwrap();
-    
-    println!("got logs: {}", logs.len());
-    let mut num_of_events = 0;
-    
-    // wait for the lock
-    let mut sighashes = ev_sighashs.lock().await;
-
-    let (logs_decoded, bnum_map) = decode_logs(&contract.address(), logs, &sighashes).await;
-
-    let documents: Vec<Document> = logs_decoded.iter().map(|(block_hash, events)| {
-        let joined = events.join("::");
-        let events_string = encode(compress_it(&joined).unwrap());
-        // println!("compressed: {} decompressed: {} original: {}", events_string.len(),decompress_it(&hex::decode(&events_string).unwrap()).unwrap().len(), joined.len());
-        // println!("Decompressed: {}", decompress_it(&hex::decode(&events_string).unwrap()).unwrap());
-        
-        num_of_events += events.len();
-
-        doc! {
-            "block_number":bnum_map.get(&block_hash).unwrap(),
-            "block_hash": format!("{:?}", block_hash),
-            "events": events_string,
-            "num_of_events": events.len() as i32,
-        }
-    }).collect();   
-    println!("Document: {:#?}", documents);
-    let h =  db.collection(EVT_COLLECTION).insert_many(documents, InsertManyOptions::default()).await;
-    if h.is_err() {
-        logger.log(LogLevel::Err, format!("{:#?}", h.err()).as_str()).await
-    } else {
-        logger.log(
-            LogLevel::Info, 
-            &format!(
-                "Inserted Block numbers from: {}\nTo: {}\nNum of Events: {}", 
-                start, 
-                end, 
-                num_of_events 
-            )
-        ).await;
-    }
+    drop(file); // Release the lock
+    Ok(())
 }

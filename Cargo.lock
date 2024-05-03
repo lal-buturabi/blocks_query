@@ -538,6 +538,7 @@ dependencies = [
  "ethabi",
  "flate2",
  "hex",
+ "lazy_static",
  "mongodb",
  "regex",
  "serde",

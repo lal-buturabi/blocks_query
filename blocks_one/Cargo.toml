@@ -19,3 +19,4 @@ tokio = { workspace = true }
 regex = { workspace = true }
 ethabi = { workspace = true }
 flate2 = { workspace = true }
+lazy_static = { workspace = true }

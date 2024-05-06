@@ -1,9 +1,10 @@
+use chrono::format::format;
 use mongodb::{options::{ClientOptions, InsertManyOptions, ResolverConfig, WriteConcern}, Client, error::Error as MError};
 use std::{collections::HashMap, env, str::FromStr, sync::Arc};
 use std::error::Error;
 
 use flate2::{write::ZlibEncoder, read::ZlibDecoder, Compression};
-use std::io::{Write, Read};
+use std::io::{Write, Read, BufRead};
 use mongodb::bson::{doc, Document};
 use web3::{signing::keccak256, transports::Http, types::{FilterBuilder, H160, H256, U64}};
 use web3::types::{Log, BlockNumber};
@@ -39,6 +40,7 @@ const EVT_COLLECTION: &str = "events_table";
 const ERR_LOG_FILE: &str = "./error.log";
 const INFO_LOG_FILE: &str = "./info.log";
 const CSV_FILE: &str = "./events.csv";
+const MISSED_BATCHES_FILE: &str = "./missed.csv";
 // const DEBUG_LOG_FILE: &str = "./debug.log";
 // const WARN_LOG_FILE: &str = "./warning.log";
 static PROCESSED_BATCHES: AtomicUsize = AtomicUsize::new(0);
@@ -95,6 +97,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             (h, (sig, index_str))
         }).collect::<HashMap<[u8; 32], (String, String)>>()
     ));
+
+    let mut missed_batches = get_missed_batches();
+
+
     println!("\n\n");
     let start_block_height: usize = 1543162;
     //let start_block_height: usize = 1801212;
@@ -119,6 +125,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     //let logger = Arc::new(RefCell::new(FileLogger::new(INFO_LOG_FILE, ERR_LOG_FILE)?));
     let logger = Arc::new(FileLogger::new(INFO_LOG_FILE, ERR_LOG_FILE)?);
+    let num_of_batches = missed_batches.len();
 
     for i in 0..num_of_batches {
         let _web3 = Arc::clone(&web3);
@@ -130,13 +137,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let semaphore = Arc::clone(&semaphore);
         let _safe_file = Arc::clone(&safe_file);
 
-        let bstart = start_block_height + i * batch_size;
-        let bend = if i == num_of_batches - 1 {
-            block_height
-        } else {
-            start_block_height  + (i + 1) * batch_size - 1
-        };
+        // let bstart = start_block_height + i * batch_size;
+        // let bend = if i == num_of_batches - 1 {
+        //     block_height
+        // } else {
+        //     start_block_height  + (i + 1) * batch_size - 1
+        // };
 
+        let (bstart, bend) = missed_batches.get(i).unwrap().clone();
+        let l0 = format!("missed batch #: {}", i);
+        logger.log(LogLevel::Info, &l0).await;
+        
         let task = task::spawn(async move {
             let _permit = semaphore.acquire().await.expect("Failed to acquire semaphore permit");
             loop {
@@ -203,8 +214,9 @@ async fn process_range(
     }
 
     let logs = logs_res.unwrap();
+    let l1 = format!("got logs: {} s: {} e: {}", logs.len(), start, end);
+    logger.log(LogLevel::Info, &l1).await;
     
-    // println!("got logs: {}", logs.len());
     let mut num_of_events = 0;
 
     let (logs_decoded, bnum_map) = decode_logs(&contract.address(), logs, &ev_sighashs).await;
@@ -224,19 +236,38 @@ async fn process_range(
             "num_of_events": events.len() as i32,
         }
     }).collect();   
-    // println!("Document: {:#?}", documents);
+    let l2 = format!("num of document: {}", documents.len());
+    logger.log(LogLevel::Info, &l2).await;
 
-    let insert_result = db.collection(EVT_COLLECTION).insert_many(documents.clone(), InsertManyOptions::default()).await;
-    if let Err(err) = insert_result {
-        logger.log(LogLevel::Err, &format!("Failed to insert documents to DB ({}, {}): {}", start, end, err)).await;
 
-        // Save documents to CSV file
-        let _ = save_documents_to_csv(documents, start, end, safe_file).await;
-    }
+    // let insert_result = db.collection(EVT_COLLECTION).insert_many(documents.clone(), InsertManyOptions::default()).await;
+    // if let Err(err) = insert_result {
+    //     logger.log(LogLevel::Err, &format!("Failed to insert documents to DB ({}, {}): {}", start, end, err)).await;
+
+    //     // Save documents to CSV file
+    //     let _ = save_documents_to_csv(documents, start, end, safe_file).await;
+    // }
     
     Ok(())
 }
 
+fn get_missed_batches() -> Vec<(usize, usize)> {
+    let file = File::open(MISSED_BATCHES_FILE).expect(&format!("{} file could not be opened!", MISSED_BATCHES_FILE));
+    let reader = std::io::BufReader::new(file);
+    let batches: Vec<(usize, usize)> = reader
+        .lines()
+        .filter_map(|line| {
+            line.ok().and_then(|line| {
+                let mut splits = line.split(", ");
+                let s = splits.next()?.parse().ok()?;
+                let e = splits.next()?.parse().ok()?;
+                Some((s, e))
+            })
+        })
+        .collect();
+
+        batches
+}
 
 fn to_param_types(sig: &str, idx: &str) -> (Vec<ParamType>, Vec<ParamType>) {
     let mut substr = String::new();

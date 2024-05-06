@@ -1,1 +1,412 @@
 
+[INFO] missed batch #: 0
+[INFO] missed batch #: 1
+[INFO] missed batch #: 2
+[INFO] missed batch #: 3
+[INFO] missed batch #: 4
+[INFO] missed batch #: 5
+[INFO] missed batch #: 6
+[INFO] missed batch #: 7
+[INFO] missed batch #: 8
+[INFO] missed batch #: 9
+[INFO] missed batch #: 10
+[INFO] missed batch #: 11
+[INFO] missed batch #: 12
+[INFO] missed batch #: 13
+[INFO] missed batch #: 14
+[INFO] missed batch #: 15
+[INFO] missed batch #: 16
+[INFO] missed batch #: 17
+[INFO] missed batch #: 18
+[INFO] missed batch #: 19
+[INFO] missed batch #: 20
+[INFO] missed batch #: 21
+[INFO] missed batch #: 22
+[INFO] missed batch #: 23
+[INFO] missed batch #: 24
+[INFO] missed batch #: 25
+[INFO] missed batch #: 26
+[INFO] missed batch #: 27
+[INFO] missed batch #: 28
+[INFO] missed batch #: 29
+[INFO] missed batch #: 30
+[INFO] missed batch #: 31
+[INFO] missed batch #: 32
+[INFO] missed batch #: 33
+[INFO] missed batch #: 34
+[INFO] missed batch #: 35
+[INFO] missed batch #: 36
+[INFO] missed batch #: 37
+[INFO] missed batch #: 38
+[INFO] missed batch #: 39
+[INFO] missed batch #: 40
+[INFO] missed batch #: 41
+[INFO] missed batch #: 42
+[INFO] missed batch #: 43
+[INFO] missed batch #: 44
+[INFO] missed batch #: 45
+[INFO] missed batch #: 46
+[INFO] missed batch #: 47
+[INFO] missed batch #: 48
+[INFO] missed batch #: 49
+[INFO] missed batch #: 50
+[INFO] missed batch #: 51
+[INFO] missed batch #: 52
+[INFO] missed batch #: 53
+[INFO] missed batch #: 54
+[INFO] missed batch #: 55
+[INFO] missed batch #: 56
+[INFO] missed batch #: 57
+[INFO] missed batch #: 58
+[INFO] missed batch #: 59
+[INFO] missed batch #: 60
+[INFO] missed batch #: 61
+[INFO] missed batch #: 62
+[INFO] missed batch #: 63
+[INFO] missed batch #: 64
+[INFO] missed batch #: 65
+[INFO] missed batch #: 66
+[INFO] missed batch #: 67
+[INFO] missed batch #: 68
+[INFO] missed batch #: 69
+[INFO] missed batch #: 70
+[INFO] missed batch #: 71
+[INFO] missed batch #: 72
+[INFO] missed batch #: 73
+[INFO] missed batch #: 74
+[INFO] missed batch #: 75
+[INFO] missed batch #: 76
+[INFO] missed batch #: 77
+[INFO] missed batch #: 78
+[INFO] missed batch #: 79
+[INFO] missed batch #: 80
+[INFO] missed batch #: 81
+[INFO] missed batch #: 82
+[INFO] missed batch #: 83
+[INFO] missed batch #: 84
+[INFO] missed batch #: 85
+[INFO] missed batch #: 86
+[INFO] missed batch #: 87
+[INFO] missed batch #: 88
+[INFO] missed batch #: 89
+[INFO] missed batch #: 90
+[INFO] missed batch #: 91
+[INFO] missed batch #: 92
+[INFO] missed batch #: 93
+[INFO] missed batch #: 94
+[INFO] missed batch #: 95
+[INFO] missed batch #: 96
+[INFO] missed batch #: 97
+[INFO] missed batch #: 98
+[INFO] missed batch #: 99
+[INFO] missed batch #: 100
+[INFO] missed batch #: 101
+[INFO] missed batch #: 102
+[INFO] missed batch #: 103
+[INFO] missed batch #: 104
+[INFO] missed batch #: 105
+[INFO] missed batch #: 106
+[INFO] missed batch #: 107
+[INFO] missed batch #: 108
+[INFO] missed batch #: 109
+[INFO] missed batch #: 110
+[INFO] missed batch #: 111
+[INFO] missed batch #: 112
+[INFO] missed batch #: 113
+[INFO] missed batch #: 114
+[INFO] missed batch #: 115
+[INFO] missed batch #: 116
+[INFO] missed batch #: 117
+[INFO] missed batch #: 118
+[INFO] missed batch #: 119
+[INFO] missed batch #: 120
+[INFO] missed batch #: 121
+[INFO] missed batch #: 122
+[INFO] missed batch #: 123
+[INFO] missed batch #: 124
+[INFO] missed batch #: 125
+[INFO] missed batch #: 126
+[INFO] missed batch #: 127
+[INFO] missed batch #: 128
+[INFO] missed batch #: 129
+[INFO] missed batch #: 130
+[INFO] missed batch #: 131
+[INFO] missed batch #: 132
+[INFO] missed batch #: 133
+[INFO] missed batch #: 134
+[INFO] missed batch #: 135
+[INFO] missed batch #: 136
+[INFO] got logs: 0 s: 1543334 e: 1543419
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1543850 e: 1543935
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1543420 e: 1543505
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1545484 e: 1545569
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1543764 e: 1543849
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1544452 e: 1544537
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1543248 e: 1543333
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1546946 e: 1547031
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1544366 e: 1544451
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1543936 e: 1544021
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1543506 e: 1543591
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1544022 e: 1544107
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1544108 e: 1544193
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1544194 e: 1544279
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1544280 e: 1544365
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1543592 e: 1543677
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1545054 e: 1545139
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1543678 e: 1543763
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1544968 e: 1545053
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1544538 e: 1544623
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1545226 e: 1545311
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1545312 e: 1545397
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1544624 e: 1544709
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1545140 e: 1545225
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1544796 e: 1544881
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1545398 e: 1545483
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1544710 e: 1544795
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1544882 e: 1544967
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1847860 e: 1847945
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1847946 e: 1848031
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1848032 e: 1848117
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1848204 e: 1848289
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1848118 e: 1848203
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1848290 e: 1848375
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1848634 e: 1848719
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1848376 e: 1848461
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1848720 e: 1848805
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1848462 e: 1848547
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1848892 e: 1848977
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1848806 e: 1848891
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1848978 e: 1849063
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1849064 e: 1849149
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1849150 e: 1849235
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1849236 e: 1849321
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1849408 e: 1849493
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1849322 e: 1849407
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1849494 e: 1849579
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1849580 e: 1849665
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1849752 e: 1849837
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1849666 e: 1849751
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1849838 e: 1849923
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1850010 e: 1850095
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1850096 e: 1850181
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1850182 e: 1850267
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1850354 e: 1850439
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1850440 e: 1850525
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1850526 e: 1850611
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1548064 e: 1548149
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1547032 e: 1547117
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1548150 e: 1548235
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1547290 e: 1547375
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1851128 e: 1851213
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1851214 e: 1851299
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1851386 e: 1851471
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1851300 e: 1851385
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1851472 e: 1851557
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1851558 e: 1851643
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1851730 e: 1851815
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1851816 e: 1851901
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1851902 e: 1851987
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1851988 e: 1852073
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1852074 e: 1852159
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1852246 e: 1852331
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1852160 e: 1852245
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1852332 e: 1852417
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1852418 e: 1852503
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1852590 e: 1852675
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1852934 e: 1853019
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1853106 e: 1853191
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1853192 e: 1853277
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1853278 e: 1853363
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1853450 e: 1853535
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1853708 e: 1853793
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1853794 e: 1853879
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1853966 e: 1854051
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1853880 e: 1853965
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1854138 e: 1854223
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1854482 e: 1854567
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1854568 e: 1854653
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1854826 e: 1854911
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1854912 e: 1854997
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1854998 e: 1855083
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1855084 e: 1855169
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1855170 e: 1855255
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1855772 e: 1855857
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1855858 e: 1855943
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1855256 e: 1855341
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1855514 e: 1855599
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1855944 e: 1856029
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1856030 e: 1856115
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2025622 e: 2025707
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2026052 e: 2026137
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2026482 e: 2026567
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2026568 e: 2026653
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2027084 e: 2027169
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2027170 e: 2027255
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2027256 e: 2027341
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2027858 e: 2027943
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2028030 e: 2028115
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2027944 e: 2028029
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2028116 e: 2028201
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2028202 e: 2028287
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2028546 e: 2028631
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2028632 e: 2028717
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2028718 e: 2028803
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2028976 e: 2029061
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2029492 e: 2029577
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1850698 e: 1850783
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1850612 e: 1850697
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1850784 e: 1850869
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1850870 e: 1850955
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 1850956 e: 1851041
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2029406 e: 2029491
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2029578 e: 2029663
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2029750 e: 2029835
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2029922 e: 2030007
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2030008 e: 2030093
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2030094 e: 2030179
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2030696 e: 2030781
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2030954 e: 2031039
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2031298 e: 2031383
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2030868 e: 2030953
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2169930 e: 2170015
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2170102 e: 2170187
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2170188 e: 2170273
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2170360 e: 2170445
+[INFO] num of document: 0
+[INFO] got logs: 0 s: 2170274 e: 2170359
+[INFO] num of document: 0

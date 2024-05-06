@@ -3,7 +3,7 @@ use mongodb::{options::{ClientOptions, InsertManyOptions, ResolverConfig, WriteC
 use std::{collections::HashMap, env, str::FromStr, sync::Arc};
 use std::error::Error;
 
-use flate2::{write::ZlibEncoder, read::ZlibDecoder, Compression};
+use flate2::{write::ZlibEncoder, Compression};
 use std::io::{Write, Read, BufRead};
 use mongodb::bson::{doc, Document};
 use web3::{signing::keccak256, transports::Http, types::{FilterBuilder, H160, H256, U64}};
@@ -170,7 +170,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
            
             PROCESSED_BATCHES.fetch_add(1, Ordering::Relaxed);
-            print_progress(i + 1, num_of_batches, bstart, bend);
+            print_progress(i +1, num_of_batches, bstart, bend);
         });
 
         tasks.push(task);
@@ -398,13 +398,6 @@ fn compress_it(s: &str) -> Result<Vec<u8>, std::io::Error> {
     
     enc.write_all(s.as_bytes())?;
     enc.finish()
-}
-
-fn decompress_it(d: &[u8]) -> Result<String, std::io::Error> {
-    let mut dec = ZlibDecoder::new(d);
-    let mut s = String::new();
-    dec.read_to_string(&mut s)?;
-    Ok(s)
 }
 
 fn print_progress(current_batch: usize, total_batches: usize, start_block: usize, end_block: usize) {

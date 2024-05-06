@@ -9,6 +9,7 @@ edition = "2021"
 async-std = { workspace = true }
 mongodb = { workspace = true }
 bson = { workspace = true } # Needed for using chrono datetime in doc
+log = { workspace = true } # Needed for using chrono datetime in doc
 # tokio = { workspace = true }
 chrono = { workspace = true } # Used for setting DateTimes
 serde = { workspace = true } # Used in the Map Data into Structs section
@@ -18,4 +19,7 @@ tokio = { workspace = true }
 actix-web = { workspace = true }
 futures = { workspace = true }
 dotenv = { workspace = true }
-
+hex = { workspace = true }
+futures-util = { workspace = true }
+env_logger = { workspace = true }
+flate2 = { workspace = true }

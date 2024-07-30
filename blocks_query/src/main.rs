@@ -17,13 +17,14 @@ async fn main() -> std::io::Result<()> {
         .init();
 
     let db = MongoRepo::init().await;
-    let data_arc = Arc::new(Data::new(db));
+    // let data_arc = Arc::new(Data::new(db));
+    let data = Data::new(db);
 
     println!("Listening on localhost:8080");
     HttpServer::new(move || {
-        let data = Arc::clone(&data_arc);
+        // let data = Arc::clone(&data_arc);
         App::new()
-        .app_data(data)
+        .app_data(data.clone())
         .service(get_user_blocks_with_events)
     })
     .bind(("localhost", 8080))?

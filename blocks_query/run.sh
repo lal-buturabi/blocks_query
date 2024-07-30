@@ -9,6 +9,6 @@ export RPC_URL3="http://3.20.106.105:8545" # syncing..
 
 export DATABASE_NAME="Nexa_Events_Data_4"
 export COLLECTION_NAME="events_table"
-export MONGODB_URI="mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.2.5"
+export MONGODB_URI="mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000"
 
 ./target/release/blocks_query

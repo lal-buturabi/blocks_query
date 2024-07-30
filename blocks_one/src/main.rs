@@ -317,10 +317,11 @@ fn to_param_types(sig: &str, idx: &str) -> (Vec<ParamType>, Vec<ParamType>) {
 async fn decode_logs(
     caddr: &H160,
     logs: Vec<Log>, 
-    ev_sighashs: &Arc<Mutex<HashMap<[u8; 32], (String, String)>>>) -> (HashMap<H256, Vec<String>>, HashMap<H256, i32>) {
+    ev_sighashs: &Arc<Mutex<HashMap<[u8; 32], (String, String)>>>) -> (HashMap<H256, Vec<String>>, HashMap<H256, i32>, HashMap<H256, String>) {
     
     let mut block_to_evts_map = HashMap::<H256, Vec<String>>::new();
     let mut bnum_map = HashMap::<H256, i32>::new();
+    let mut addr_map = HashMap::<H256, String>::new();
     let mut matched_evts: Vec<String> = Vec::new();
     let mut matched_data_vec = Vec::<String>::new();
     let len = logs.len();
